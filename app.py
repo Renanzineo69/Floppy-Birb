@@ -1,6 +1,7 @@
 import pygame
 import random
 import sys
+import os
 
 pygame.init()
 
@@ -17,8 +18,11 @@ PRETO = (0, 0, 0)
 VERDE_CLARO = (100, 200, 120)  # Verde mais claro para sombreamento
 VERDE_ESCURO = (30, 120, 70)
 AMARELO = (255, 255, 51)
+AMARELO_ESCURO = (204, 204, 0, 200)
+VERMELHO = (255, 0, 0)
 
 # Variáveis globais do jogo
+pontos = 0
 birb_x = 50
 birb_y = ALTURA_JANELA // 2
 birb_velocidade = 0
@@ -31,27 +35,69 @@ cano_x = LARGURA_JANELA
 cano_altura = random.randint(50, 400)
 cano_velocidade = 3
 
-pontos = 0
-
 clock = pygame.time.Clock()
 
 # Carrega a imagem de fundo
-background_img = pygame.image.load('Floppy-Birb/images/floppybckgnd.png')
+background_img = pygame.image.load('Floppy-Birb/bckgrnd/floppybckgnd.png')
 background_img = pygame.transform.scale(background_img, (LARGURA_JANELA, ALTURA_JANELA))
 
+personagem_selecionado = None
+
 # Carrega a imagem do pássaro e ajusta o tamanho
-birb_img = pygame.image.load('Floppy-Birb/images/floppybirb.png').convert_alpha()
+
+birb_img = pygame.image.load('Floppy-Birb/images/1-floppybirb.png').convert_alpha()
 birb_img = pygame.transform.scale(birb_img, (birb_img.get_width() * 2, birb_img.get_height() * 2))
 
+# Função para carregar automaticamente as imagens dos personagens da pasta 'images'
+def carregar_imagens_personagens(pasta="Floppy-Birb/images"):
+    imagens_personagens = []
+    for arquivo in os.listdir(pasta):
+        if arquivo.endswith(".png"):
+            caminho_completo = os.path.join(pasta, arquivo)
+            imagem = pygame.image.load(caminho_completo).convert_alpha()
+            imagem = pygame.transform.scale(imagem, (imagem.get_width() * 3, imagem.get_height() * 3))
+            imagens_personagens.append(imagem)
+    return imagens_personagens
+
+def atualizar_birb_img(personagem_img):
+    global birb_img  # Supondo que birb_img seja uma variável global usada em outra parte do jogo
+    birb_img = personagem_img
 # Fonte para texto
 fonte = pygame.font.SysFont("comicsansms", 24)
 
 # Variável global para controlar o movimento do background
 background_x = 0
 
+def desenha_botao_personagens():
+    # Define as coordenadas e dimensões do botão
+    botao_rect = pygame.Rect(LARGURA_JANELA // 2 - 80, ALTURA_JANELA // 2 + 100, 160, 40)
+    
+    # Desenha o retângulo amarelo do botão
+    pygame.draw.rect(tela, AMARELO, botao_rect, border_radius=8)  # Botão preto com bordas arredondadas
+    pygame.draw.rect(tela, PRETO, botao_rect, border_radius=8, width=3)
+    
+    # Renderiza o texto "Personagens" em preto no botão
+    fonte_botao = pygame.font.SysFont("comicsansms", 24)
+    texto_botao = fonte_botao.render("Personagens", True, PRETO)
+    
+    # Centraliza o texto dentro do botão
+    texto_rect_botao = texto_botao.get_rect(center=botao_rect.center)
+    
+    # Desenha o texto na tela
+    tela.blit(texto_botao, texto_rect_botao)
+
 # Função para desenhar o pássaro
 def desenha_passaro():
-    tela.blit(birb_img, (birb_x - birb_img.get_width() // 2, birb_y - birb_img.get_height() // 2))
+    # Calcula o ângulo de inclinação do pássaro com base na velocidade do pulo
+    angulo = birb_velocidade * -5  # Ajuste este valor conforme necessário para controlar a inclinação
+
+    # Rotaciona a imagem do pássaro
+    birb_rotacionado = pygame.transform.rotate(birb_img, angulo)
+    # Obtém um novo retângulo que contém o pássaro rotacionado
+    retangulo_rotacionado = birb_rotacionado.get_rect(center=(birb_x, birb_y))
+
+    # Desenha o pássaro rotacionado na tela
+    tela.blit(birb_rotacionado, retangulo_rotacionado)
 
 # Função para desenhar os canos
 def desenha_canos():
@@ -76,8 +122,7 @@ def desenha_canos():
     pygame.draw.rect(tela, VERDE_ESCURO, (cano_x + 50, cano_altura + cano_espaço, 4, 20))  # Linha vertical direita da borda (verde escuro)
 
 # Função para mostrar a tela de início com movimento de fundo
-def mostra_tela_inicio():
-    global background_x
+def mostra_tela_inicio(background_x = 0):
 
     titulo_fonte = pygame.font.SysFont("comicsansms", 36, bold=True)  # Define uma fonte em negrito para o título
     clock = pygame.time.Clock()
@@ -144,10 +189,13 @@ def mostra_tela_inicio():
         texto_rect_inicio = texto_inicio.get_rect(center=(LARGURA_JANELA // 2, ALTURA_JANELA - 50))
         tela.blit(texto_inicio, texto_rect_inicio)
 
+        # Desenha o botão "Personagens"
+        desenha_botao_personagens()
+
         # Atualiza a tela
         pygame.display.flip()
 
-        # Espera pelo evento de tecla para iniciar o jogo
+        # Espera pelo evento de tecla para iniciar o jogo ou mostrar a tela de seleção de personagem
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -155,9 +203,141 @@ def mostra_tela_inicio():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     return  # Sai da função e inicia o jogo
-
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                botao_rect = pygame.Rect(LARGURA_JANELA // 2 - 80, ALTURA_JANELA // 2 + 100, 160, 40)
+                if botao_rect.collidepoint(mouse_x, mouse_y):
+                    mostra_tela_selecao_personagem()
         # Limita a taxa de atualização da tela
         clock.tick(60)
+
+def mostra_tela_selecao_personagem(background_x=0):
+
+    # Carregar imagens dos personagens automaticamente da pasta 'images'
+    imagens_personagens = carregar_imagens_personagens()
+    if not imagens_personagens:
+        raise ValueError("Nenhuma imagem encontrada na pasta 'images'.")
+
+    indice_personagem_selecionado = 0  # Índice do personagem atualmente selecionado
+    personagem_selecionado = imagens_personagens[indice_personagem_selecionado]  # Personagem inicialmente selecionado
+
+    # Tamanho e posição do quadrado amarelo com borda preta
+    quadro_x = LARGURA_JANELA // 4
+    quadro_y = ALTURA_JANELA // 4
+    quadro_largura = LARGURA_JANELA // 2
+    quadro_altura = ALTURA_JANELA // 2
+
+    # Definição do botão de retorno no canto superior direito do quadrado amarelo
+    botao_voltar_tamanho = 30  # Tamanho do botão
+    botao_voltar_x = quadro_x + quadro_largura - botao_voltar_tamanho + 13.5
+    botao_voltar_y = quadro_y - 13.5
+    botao_voltar_rect = pygame.Rect(botao_voltar_x, botao_voltar_y, botao_voltar_tamanho, botao_voltar_tamanho)
+
+    # Definir botões das setas
+    seta_esquerda_rect = pygame.Rect(quadro_x - 80, ALTURA_JANELA // 2 - 25, 50, 50)
+    seta_direita_rect = pygame.Rect(quadro_x + quadro_largura + 30, ALTURA_JANELA // 2 - 25, 50, 50)
+
+    selecionado = False  # Inicializa o estado de seleção como False
+
+    # Loop da tela de seleção de personagem
+    rodando = True
+    while rodando:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    rodando = False  # Sair da tela de seleção de personagem
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                # Verifica se o botão "X" foi clicado para voltar à tela principal
+                if botao_voltar_rect.collidepoint(mouse_x, mouse_y):
+                    return  # Voltar para a tela principal
+                # Verifica se clicou na seta esquerda
+                elif seta_esquerda_rect.collidepoint(mouse_x, mouse_y):
+                    indice_personagem_selecionado = (indice_personagem_selecionado - 1) % len(imagens_personagens)
+                    personagem_selecionado = imagens_personagens[indice_personagem_selecionado]
+                # Verifica se clicou na seta direita
+                elif seta_direita_rect.collidepoint(mouse_x, mouse_y):
+                    indice_personagem_selecionado = (indice_personagem_selecionado + 1) % len(imagens_personagens)
+                    personagem_selecionado = imagens_personagens[indice_personagem_selecionado]
+                # Verifica se clicou no botão "Selecionar"
+                elif botao_selecionar_rect.collidepoint(mouse_x, mouse_y):
+                    selecionado = not selecionado  # Alterna o estado de seleção
+                    personagem_selecionado = imagens_personagens[indice_personagem_selecionado]
+                    atualizar_birb_img(personagem_selecionado)
+
+        # Movimento do plano de fundo
+        background_x -= int(cano_velocidade * 0.5)
+        if background_x <= -background_img.get_width():
+            background_x = 0
+
+        # Desenha o fundo com movimento parallax
+        tela.fill(BRANCO)
+        tela.blit(background_img, (background_x, 0))
+        tela.blit(background_img, (background_x + background_img.get_width(), 0))
+
+        # Desenha o quadro amarelo com bordas pretas
+        pygame.draw.rect(tela, AMARELO, (quadro_x, quadro_y, quadro_largura, quadro_altura), border_radius=10)  # Preenche o retângulo com amarelo claro
+        pygame.draw.rect(tela, PRETO, (quadro_x, quadro_y, quadro_largura, quadro_altura), border_radius=10, width=3)  # Desenha as bordas pretas
+
+        # Desenha o retângulo amarelo escuro ao redor da área da imagem do personagem
+        margem = 20
+        area_personagem_rect = pygame.Rect(quadro_x + margem, quadro_y + margem, quadro_largura - 2 * margem, quadro_altura - 2 * margem)
+        pygame.draw.rect(tela, AMARELO_ESCURO if selecionado else AMARELO, area_personagem_rect, border_radius=10)
+        pygame.draw.rect(tela, PRETO, area_personagem_rect, border_radius=10, width=3)
+
+        # Desenha a imagem do personagem atualmente selecionado dentro da área delimitada
+        personagem_rect = personagem_selecionado.get_rect(center=(LARGURA_JANELA // 2, ALTURA_JANELA // 2))
+        tela.blit(personagem_selecionado, personagem_rect)
+
+        # Definição do botão "Selecionar" dentro do retângulo amarelo principal
+        botao_selecionar_rect = pygame.Rect(quadro_x + quadro_largura // 2 - 80, quadro_y + quadro_altura - 70, 160, 50)
+        pygame.draw.rect(tela, AMARELO_ESCURO if selecionado else AMARELO, botao_selecionar_rect, border_radius=10)
+        pygame.draw.rect(tela, PRETO, botao_selecionar_rect, border_radius=10, width=3)
+
+        # Desenha o texto no botão "Selecionar" com base no estado de seleção
+        fonte_botao = pygame.font.SysFont("comicsansms", 24)
+        texto_selecionar = fonte_botao.render("Selecionado" if selecionado else "Selecionar", True, PRETO)
+        texto_rect_selecionar = texto_selecionar.get_rect(center=botao_selecionar_rect.center)
+        tela.blit(texto_selecionar, texto_rect_selecionar)
+
+        # Desenha as setas dentro dos quadrados amarelos com borda preta
+        tamanho_seta = 50
+        seta_esquerda_rect = pygame.Rect(quadro_x - 80, ALTURA_JANELA // 2 - 25, tamanho_seta, tamanho_seta)
+        seta_direita_rect = pygame.Rect(quadro_x + quadro_largura + 30, ALTURA_JANELA // 2 - 25, tamanho_seta, tamanho_seta)
+
+        # Desenha os quadrados amarelos com borda preta ao redor das setas
+        pygame.draw.rect(tela, AMARELO, seta_esquerda_rect, border_radius=10)  # Seta esquerda
+        pygame.draw.rect(tela, PRETO, seta_esquerda_rect, border_radius=10, width=3)  # Borda preta
+        pygame.draw.rect(tela, AMARELO, seta_direita_rect, border_radius=10)  # Seta direita
+        pygame.draw.rect(tela, PRETO, seta_direita_rect, border_radius=10, width=3)  # Borda preta
+
+        # Desenha o texto das setas
+        fonte_seta = pygame.font.SysFont("arial", 36)
+        texto_seta_esquerda = fonte_seta.render("<", True, PRETO)
+        texto_seta_direita = fonte_seta.render(">", True, PRETO)
+
+        # Posiciona texto das setas nos retângulos
+        tela.blit(texto_seta_esquerda, seta_esquerda_rect.move(10, 5))
+        tela.blit(texto_seta_direita, seta_direita_rect.move(10, 5))
+
+        # Desenha o botão "X" para voltar à tela principal (formato circular com borda)
+        pygame.draw.ellipse(tela, VERMELHO, botao_voltar_rect)  # Botão vermelho (elipse)
+        pygame.draw.ellipse(tela, PRETO, botao_voltar_rect, width=2)  # Borda preta para o botão
+
+        # Desenha as linhas diagonais dentro do botão "X" (tamanho menor)
+        line_thickness = 2
+        linha1_inicio = (botao_voltar_rect.left + 10, botao_voltar_rect.top + 10)
+        linha1_fim = (botao_voltar_rect.right - 10, botao_voltar_rect.bottom - 10)
+        linha2_inicio = (botao_voltar_rect.left + 10, botao_voltar_rect.bottom - 10)
+        linha2_fim = (botao_voltar_rect.right - 10, botao_voltar_rect.top + 10)
+        pygame.draw.line(tela, PRETO, linha1_inicio, linha1_fim, line_thickness)  # Linha diagonal (X)
+        pygame.draw.line(tela, PRETO, linha2_inicio, linha2_fim, line_thickness)  # Linha diagonal (X)
+
+        # Atualiza a tela
+        pygame.display.flip()
 
 # Função para mostrar tela de fim de jogo
 def mostra_tela_fim():
@@ -182,7 +362,7 @@ def mostra_tela_fim():
 
     texto_fim2 = fonte_fim.render(f"Pontuação: {pontos}", True, PRETO)
     texto_rect2 = texto_fim2.get_rect(center=(LARGURA_JANELA // 2, ALTURA_JANELA // 2))
-    overlay.blit(texto_fim2, texto_rect2)
+    overlay.blit(texto_fim2,  texto_rect2)
 
     # Desenha o botão de reiniciar dentro da caixa
     botao_rect = pygame.Rect(LARGURA_JANELA // 2 - 80, ALTURA_JANELA // 2 + 50, 160, 40)
@@ -223,12 +403,12 @@ def reiniciar_jogo():
 
 # Função para mover o background
 def move_background():
-    global background_x, cano_velocidade
+    global cano_velocidade, background_x
     background_x -= int(cano_velocidade * 0.5)  # Ajuste o fator de movimento do background
 
     if background_x <= -background_img.get_width():
         background_x = 0  # Reinicia a posição do background quando sair completamente da tela
-
+        
 # Função para mostrar a pontuação durante o jogo
 def mostra_pontuacao():
     texto_pontuacao = fonte.render(str(pontos), True, PRETO)
@@ -286,8 +466,7 @@ def jogo():
     rodando = True
     esperando_inicio = True
     primeiro_jogo = True
-
-    birb_raio_x = 28 // 2  # Raio horizontal do pássaro (metade da largura)
+    
     birb_raio_y = 20 // 2  # Raio vertical do pássaro (metade da altura)
 
     velocidade_aumento_por_ponto = 0.1  # Taxa de aumento da velocidade dos canos por ponto
