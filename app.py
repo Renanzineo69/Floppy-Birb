@@ -2,8 +2,10 @@ import pygame
 import random
 import sys
 import os
+import pygame.mixer
 
 pygame.init()
+pygame.mixer.init()
 
 # Configurações da tela
 LARGURA_JANELA = 400
@@ -15,7 +17,7 @@ pygame.display.set_caption("Floppy Birb")
 BRANCO = (255, 255, 255)
 VERDE = (45, 180, 105)
 PRETO = (0, 0, 0)
-VERDE_CLARO = (100, 200, 120)  # Verde mais claro para sombreamento
+VERDE_CLARO = (100, 200, 120)
 VERDE_ESCURO = (30, 120, 70)
 AMARELO = (255, 255, 51)
 AMARELO_ESCURO = (204, 204, 0, 200)
@@ -28,13 +30,11 @@ birb_y = ALTURA_JANELA // 2
 birb_velocidade = 0
 gravidade = 0.5
 pulo = 9
-
 cano_largura = 50
 cano_espaço = 150
 cano_x = LARGURA_JANELA
 cano_altura = random.randint(50, 400)
 cano_velocidade = 3
-
 clock = pygame.time.Clock()
 
 # Carrega a imagem de fundo
@@ -44,9 +44,16 @@ background_img = pygame.transform.scale(background_img, (LARGURA_JANELA, ALTURA_
 personagem_selecionado = None
 
 # Carrega a imagem do pássaro e ajusta o tamanho
-
 birb_img = pygame.image.load('Floppy-Birb/images/1-floppybirb.png').convert_alpha()
 birb_img = pygame.transform.scale(birb_img, (birb_img.get_width() * 2, birb_img.get_height() * 2))
+
+# Carrega os arquivos de som
+som_pulo = pygame.mixer.Sound('Floppy-Birb/sound/jump.wav')
+som_colisao = pygame.mixer.Sound('Floppy-Birb/sound/collision.wav')
+
+# Carrega música de fundo
+pygame.mixer.music.load('Floppy-Birb/sound/DoomEternalOST.ogg')
+F = 'Floppy-Birb/sound/F.ogg'
 
 # Função para carregar automaticamente as imagens dos personagens da pasta 'images'
 def carregar_imagens_personagens(pasta="Floppy-Birb/images"):
@@ -59,8 +66,9 @@ def carregar_imagens_personagens(pasta="Floppy-Birb/images"):
             imagens_personagens.append(imagem)
     return imagens_personagens
 
+# Função para atualizar o personagem atual
 def atualizar_birb_img(personagem_img):
-    global birb_img  # Supondo que birb_img seja uma variável global usada em outra parte do jogo
+    global birb_img  
     birb_img = personagem_img
 # Fonte para texto
 fonte = pygame.font.SysFont("comicsansms", 24)
@@ -68,6 +76,7 @@ fonte = pygame.font.SysFont("comicsansms", 24)
 # Variável global para controlar o movimento do background
 background_x = 0
 
+# Função para desenhar o botão de selecionar personagens
 def desenha_botao_personagens():
     # Define as coordenadas e dimensões do botão
     botao_rect = pygame.Rect(LARGURA_JANELA // 2 - 80, ALTURA_JANELA // 2 + 100, 160, 40)
@@ -121,7 +130,7 @@ def desenha_canos():
     pygame.draw.rect(tela, VERDE_ESCURO, (cano_x + 47, cano_altura + cano_espaço + 20, 4, ALTURA_JANELA - cano_altura - cano_espaço))  # Linha vertical direita (verde escuro)
     pygame.draw.rect(tela, VERDE_ESCURO, (cano_x + 50, cano_altura + cano_espaço, 4, 20))  # Linha vertical direita da borda (verde escuro)
 
-# Função para mostrar a tela de início com movimento de fundo
+# Função para mostrar a tela de início
 def mostra_tela_inicio(background_x = 0):
 
     titulo_fonte = pygame.font.SysFont("comicsansms", 36, bold=True)  # Define uma fonte em negrito para o título
@@ -211,9 +220,10 @@ def mostra_tela_inicio(background_x = 0):
         # Limita a taxa de atualização da tela
         clock.tick(60)
 
+# Função da tela de seleção de personagens
 def mostra_tela_selecao_personagem(background_x=0):
 
-    # Carregar imagens dos personagens automaticamente da pasta 'images'
+    # Carrega imagens dos personagens automaticamente da pasta 'images'
     imagens_personagens = carregar_imagens_personagens()
     if not imagens_personagens:
         raise ValueError("Nenhuma imagem encontrada na pasta 'images'.")
@@ -233,7 +243,7 @@ def mostra_tela_selecao_personagem(background_x=0):
     botao_voltar_y = quadro_y - 13.5
     botao_voltar_rect = pygame.Rect(botao_voltar_x, botao_voltar_y, botao_voltar_tamanho, botao_voltar_tamanho)
 
-    # Definir botões das setas
+    # Define os botões das setas
     seta_esquerda_rect = pygame.Rect(quadro_x - 80, ALTURA_JANELA // 2 - 25, 50, 50)
     seta_direita_rect = pygame.Rect(quadro_x + quadro_largura + 30, ALTURA_JANELA // 2 - 25, 50, 50)
 
@@ -339,7 +349,7 @@ def mostra_tela_selecao_personagem(background_x=0):
         # Atualiza a tela
         pygame.display.flip()
 
-# Função para mostrar tela de fim de jogo
+# Função para mostrar a tela de fim de jogo
 def mostra_tela_fim():
     global pontos
 
@@ -464,6 +474,7 @@ def jogo():
     global birb_y, birb_velocidade, cano_x, cano_altura, pontos, background_x, cano_velocidade
 
     rodando = True
+    
     esperando_inicio = True
     primeiro_jogo = True
     
@@ -476,7 +487,8 @@ def jogo():
             if primeiro_jogo:
                 mostra_tela_inicio()
                 primeiro_jogo = False
-
+                pygame.mixer.music.play(-1) # Toca música do jogo principal em loop
+                
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -484,15 +496,17 @@ def jogo():
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE:
                         esperando_inicio = False
-
+                        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+                
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     birb_velocidade = -pulo
-
+                    som_pulo.play()
+                    
         # Atualiza a posição do pássaro com base na gravidade
         birb_velocidade += gravidade
         birb_y += birb_velocidade
@@ -508,7 +522,17 @@ def jogo():
 
         # Verifica colisões
         if verifica_colisao():
+            som_colisao.play()
+            # Carrega e toca a música de fim de jogo
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load(F)
+            pygame.mixer.music.play()
             mostra_tela_fim()
+            
+            # Para a música de fim de jogo e toca a do jogo principal
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load('Floppy-Birb/sound/DoomEternalOST.ogg')
+            pygame.mixer.music.play()
 
         # Verifica se o pássaro atingiu os limites da tela
         if birb_y + birb_raio_y > ALTURA_JANELA or birb_y - birb_raio_y < 0:
@@ -527,7 +551,7 @@ def jogo():
         mostra_pontuacao()  # Mostra a pontuação na tela
         pygame.display.flip()
         clock.tick(60)
-
+        
 # Inicia o jogo
 jogo()
 
